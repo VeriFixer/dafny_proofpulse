@@ -337,7 +337,7 @@ public partial class BoogieGenerator {
     Bpl.Expr guard = null;
     if (Guard != null) {
       TrStmt_CheckWellformed(Guard, whereToBuildLoopGuard, locals, etran, true);
-      guard = Bpl.Expr.Not(etran.TrExpr(Guard));
+      guard = Bpl.Expr.Not(loop is WhileStmt ? TrGuard(Guard, whereToBuildLoopGuard, locals, etran) : etran.TrExpr(Guard));
     }
     var guardBreak = new BoogieStmtListBuilder(this, options, builder.Context);
     guardBreak.Add(new Bpl.BreakCmd(loop.Origin, null));
