@@ -1,3 +1,4 @@
 [submodule "boogie"]
 	path = boogie
-	url = https://github.com/boogie-org/boogie.git
+	url = https://github.com/VeriFixer/boogie.git
+	branch = proofpulse-v3.5.5
