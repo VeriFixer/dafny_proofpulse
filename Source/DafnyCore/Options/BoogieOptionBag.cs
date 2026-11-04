@@ -82,6 +82,12 @@ public static class BoogieOptionBag {
 
   public static readonly Option<bool> IsolateAssertions = new("--isolate-assertions", @"Verify each assertion in isolation.");
 
+  public static readonly Option<bool> NoAbstractInterpretation = new("--no-abstract-interpretation",
+    "Disable Boogie's abstract interpretation (interval domain inference of loop invariants). " +
+    "Useful when verification coverage tracking needs accurate dependency chains.") {
+    IsHidden = false
+  };
+
   public static readonly Option<FileInfo> SolverPath = new("--solver-path",
     "Can be used to specify a custom SMT solver to use for verifying Dafny proofs.") {
   };
@@ -146,6 +152,11 @@ public static class BoogieOptionBag {
     DafnyOptions.RegisterLegacyBinding(SolverOptionHelp, (o, v) => o.ProverHelpRequested = v);
     DafnyOptions.RegisterLegacyBinding(VerificationErrorLimit, (options, value) => { options.ErrorLimit = value; });
     DafnyOptions.RegisterLegacyBinding(IsolateAssertions, (o, v) => o.VcsSplitOnEveryAssert = v);
+    DafnyOptions.RegisterLegacyBinding(NoAbstractInterpretation, (o, v) => {
+      if (v) {
+        o.UseAbstractInterpretation = false;
+      }
+    });
 
     OptionRegistry.RegisterGlobalOption(BoogieArguments, OptionCompatibility.CheckOptionMatches);
     OptionRegistry.RegisterGlobalOption(NoVerify, OptionCompatibility.OptionLibraryImpliesLocalError);
@@ -154,6 +165,7 @@ public static class BoogieOptionBag {
     OptionRegistry.RegisterOption(VerificationTimeLimit, OptionScope.Cli);
     OptionRegistry.RegisterOption(VerificationErrorLimit, OptionScope.Cli);
     OptionRegistry.RegisterOption(IsolateAssertions, OptionScope.Cli);
+    OptionRegistry.RegisterOption(NoAbstractInterpretation, OptionScope.Cli);
     OptionRegistry.RegisterOption(SolverLog, OptionScope.Cli);
     OptionRegistry.RegisterOption(SolverOption, OptionScope.Cli);
     OptionRegistry.RegisterOption(SolverOptionHelp, OptionScope.Cli);

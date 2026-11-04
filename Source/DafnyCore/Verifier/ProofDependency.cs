@@ -224,3 +224,18 @@ public class FunctionDefinitionDependency : ProofDependency {
     function = f;
   }
 }
+
+// Represents one atom of an if or while condition: a maximal sub-expression
+// that is not a boolean connective (&&, ||, ==>, <==>, !).
+public class ConditionAtomDependency : ProofDependency {
+  public override TokenRange Range => atom.EntireRange;
+
+  public override string Description =>
+    "condition atom";
+
+  private readonly Expression atom;
+
+  public ConditionAtomDependency(Expression atom) {
+    this.atom = atom;
+  }
+}

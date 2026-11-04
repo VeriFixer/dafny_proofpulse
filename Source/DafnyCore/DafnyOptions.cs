@@ -929,9 +929,11 @@ namespace Microsoft.Dafny {
       base.ApplyDefaultOptions();
 
       Backend ??= new CsharpBackend(this);
-      // Ask Boogie to perform abstract interpretation
-      UseAbstractInterpretation = true;
-      Ai.J_Intervals = true;
+      // Ask Boogie to perform abstract interpretation (unless user disabled it)
+      if (!Get(BoogieOptionBag.NoAbstractInterpretation)) {
+        UseAbstractInterpretation = true;
+        Ai.J_Intervals = true;
+      }
     }
 
     public bool IsUsingZ3() {
