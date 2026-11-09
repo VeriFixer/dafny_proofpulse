@@ -1,3 +1,4 @@
+using DafnyCore.Verifier;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
@@ -41,13 +42,13 @@ public partial class BoogieGenerator {
         var s0 = (CallStmt)forallStmt.S0;
         if (Attributes.Contains(forallStmt.Attributes, "_trustWellformed")) {
           TrForallStmtCall(forallStmt.Origin, forallStmt.BoundVars, forallStmt.Bounds, forallStmt.Range, null,
-            forallStmt.EffectiveEnsuresClauses, null, s0, null, builder, locals, etran);
+            forallStmt.EffectiveEnsuresClauses, null, s0, null, builder, locals, etran, trackConclusion: true);
         } else {
           var definedness = new BoogieStmtListBuilder(this, options, builder.Context);
           DefineFuelConstant(forallStmt.Origin, forallStmt.Attributes, definedness, etran);
           var exporter = new BoogieStmtListBuilder(this, options, builder.Context);
           TrForallStmtCall(forallStmt.Origin, forallStmt.BoundVars, forallStmt.Bounds, forallStmt.Range, null,
-            forallStmt.EffectiveEnsuresClauses, null, s0, definedness, exporter, locals, etran);
+            forallStmt.EffectiveEnsuresClauses, null, s0, definedness, exporter, locals, etran, trackConclusion: true);
           // All done, so put the two pieces together
           builder.Add(new Bpl.IfCmd(forallStmt.Origin, null, definedness.Collect(forallStmt.Origin), null, exporter.Collect(forallStmt.Origin)));
         }
@@ -75,7 +76,7 @@ public partial class BoogieGenerator {
   void TrForallStmtCall(IOrigin tok, List<BoundVar> boundVars, List<BoundedPool> bounds,
     Expression range, ExpressionConverter additionalRange, List<Expression> forallExpressions, List<List<Expression>> triggers, CallStmt s0,
     BoogieStmtListBuilder definedness, BoogieStmtListBuilder exporter, Variables locals, ExpressionTranslator etran,
-    bool includeCanCalls = true) {
+    bool includeCanCalls = true, bool trackConclusion = false) {
     Contract.Requires(tok != null);
     Contract.Requires(boundVars != null);
     Contract.Requires(bounds != null);
@@ -238,7 +239,13 @@ public partial class BoogieGenerator {
       }
       body = BplImp(typeAndAdditionalAntecedents, body);
       var qq = new Bpl.ForallExpr(tok, bvars, tr, body);
-      exporter.Add(TrAssumeCmd(tok, qq));
+      var conclusion = TrAssumeCmd(tok, qq);
+      // Track the exported postconditions as the call's, so that proofs using them depend on it
+      // (only for a forall statement: automatic induction's hypothesis stays untracked).
+      if (trackConclusion) {
+        proofDependencies?.AddProofDependencyId(conclusion, s0.Origin, new CallDependency(s0));
+      }
+      exporter.Add(conclusion);
     }
   }
 
@@ -568,10 +575,12 @@ public partial class BoogieGenerator {
     var p = Substitute(forallStmt.EffectiveEnsuresClauses[0], null, substMap);
     exporter.Add(TrAssumeCmd(forallStmt.Origin, etran.CanCallAssumption(p)));
     var qq = etran.TrExpr(p);
-    if (forallStmt.BoundVars.Count != 0) {
-      exporter.Add(TrAssumeCmd(forallStmt.Origin, BplAnd(se, qq)));
-    } else {
-      exporter.Add(TrAssumeCmd(forallStmt.Origin, BplAnd(se, ((Bpl.ForallExpr)qq).Body)));
-    }
+    var conclusion = forallStmt.BoundVars.Count != 0
+      ? TrAssumeCmd(forallStmt.Origin, BplAnd(se, qq))
+      : TrAssumeCmd(forallStmt.Origin, BplAnd(se, ((Bpl.ForallExpr)qq).Body));
+    // Track the exported ensures clauses, so that proofs using them depend on the forall statement.
+    var ensures = forallStmt.Ens.Count == 1 ? forallStmt.Ens[0].E : p;
+    proofDependencies?.AddProofDependencyId(conclusion, ensures.Origin, new AssumptionDependency(false, "forall statement conclusion", ensures));
+    exporter.Add(conclusion);
   }
 }
